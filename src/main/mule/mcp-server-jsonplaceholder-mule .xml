@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:mcp="http://www.mulesoft.org/schema/mule/mcp"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/mcp http://www.mulesoft.org/schema/mule/mcp/current/mule-mcp.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="f2412f3b-b3bc-4ae4-a082-bec955cf36e6" >
+		<http:listener-connection host="0.0.0.0" port="${http.port}" readTimeout="60000">
+		</http:listener-connection>
+		<http:listener-interceptors >
+			<http:cors-interceptor >
+				<http:origins >
+					<http:public-resource />
+				</http:origins>
+			</http:cors-interceptor>
+		</http:listener-interceptors>
+   	</http:listener-config>
+   	<configuration-properties doc:name="Configuration properties" doc:id="e1ed8a46-49cb-4383-9676-e2c89cf3a3fb" file="config.properties" />
+	<mcp:server-config name="MCP_Server_Streamable" doc:name="MCP Server" doc:id="9125417d-6d45-4c4c-90fc-6791e3c50b4f" serverName="mule-mcp-server" serverVersion="1.0.0" >
+		<mcp:streamable-http-server-connection listenerConfig="HTTP_Listener_config" />
+	</mcp:server-config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="3da31d0c-7105-4ac7-9dca-093ec42f21d9" >
+		<http:request-connection protocol="HTTPS" host="jsonplaceholder.typicode.com" />
+	</http:request-config>
+	<flow name="get-users-streamable" doc:id="26e54d50-d7de-482b-ac28-9792790c37de" initialState="started">
+		<mcp:tool-listener doc:name="Streamable Get Users" doc:id="817e3425-a867-4d60-b044-8ac61b8f901d" config-ref="MCP_Server_Streamable" name="get_users">
+			<mcp:description ><![CDATA[Enables retrieval of users.]]></mcp:description>
+			<mcp:parameters-schema><![CDATA[{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+  },
+  "additionalProperties": false
+}
+]]></mcp:parameters-schema>
+			<mcp:responses >
+				<mcp:text-tool-response-content text="#[payload.^raw]" priority="1" >
+					<mcp:audience >
+						<mcp:audience-item value="ASSISTANT" />
+					</mcp:audience>
+				</mcp:text-tool-response-content>
+			</mcp:responses>
+		</mcp:tool-listener>
+		<flow-ref doc:name="get-userssub-flow" doc:id="31ff4fa4-5010-4f7a-9956-faccb31b58c9" name="get-users-sub-flow" />
+	</flow>
+	<sub-flow name="get-users-sub-flow" doc:id="19ded055-b740-4acc-bb9d-12c3b21f0140" >
+		<http:request method="GET" doc:name="Request" doc:id="be40808a-601f-4b5e-8b08-22457fb60298" config-ref="HTTP_Request_configuration" path="/users/1"/>
+		<ee:transform doc:name="Transform Message" doc:id="01e00ca4-bf39-421e-9a3d-a704c44acfaf" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+</mule>

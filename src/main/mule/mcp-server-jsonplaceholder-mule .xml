@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:mcp="http://www.mulesoft.org/schema/mule/mcp"
-	xmlns:http="http://www.mulesoft.org/schema/mule/http"
-	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:mcp="http://www.mulesoft.org/schema/mule/mcp"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/mcp http://www.mulesoft.org/schema/mule/mcp/current/mule-mcp.xsd
-http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
 	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="f2412f3b-b3bc-4ae4-a082-bec955cf36e6" >
 		<http:listener-connection host="0.0.0.0" port="${http.port}" readTimeout="60000">
 		</http:listener-connection>
@@ -24,6 +25,11 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
 	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="3da31d0c-7105-4ac7-9dca-093ec42f21d9" >
 		<http:request-connection protocol="HTTPS" host="jsonplaceholder.typicode.com" />
 	</http:request-config>
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="a08f166d-a590-401e-9b29-00f54d81891f" >
+		<salesforce:basic-connection username="${sfdc.username}" password="${sfdc.password}" securityToken="${sfdc.token}" />
+	</salesforce:sfdc-config>
+		<global-property doc:name="Global Property" doc:id="40c4c4e0-a2b0-48b4-8cf1-102794609bb9" name="env" value="local" />
+	<configuration-properties doc:name="Configuration properties" doc:id="4195e43a-5740-4854-8855-75d0bf83bd02" file="config/config-${env}.yaml"/>
 	<flow name="get-users-streamable" doc:id="26e54d50-d7de-482b-ac28-9792790c37de" initialState="started">
 		<mcp:tool-listener doc:name="Streamable Get Users" doc:id="817e3425-a867-4d60-b044-8ac61b8f901d" config-ref="MCP_Server_Streamable" name="get_users">
 			<mcp:description ><![CDATA[Enables retrieval of users.]]></mcp:description>
@@ -45,9 +51,41 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
 		</mcp:tool-listener>
 		<flow-ref doc:name="get-userssub-flow" doc:id="31ff4fa4-5010-4f7a-9956-faccb31b58c9" name="get-users-sub-flow" />
 	</flow>
+	<flow name="get-loggedin-userinfo-from-salesforce-streamable" doc:id="c83d15c3-562f-4d07-8026-cf9e82f6f0c6" initialState="started">
+		<mcp:tool-listener doc:name="Streamable Get Users Info From Salesforce" doc:id="b1560235-65ab-4ab8-a46c-e6e1440ea97c" config-ref="MCP_Server_Streamable" name="get-loggedin-userinfo-from-salesforce">
+			<mcp:description ><![CDATA[Enables retrieval of users.]]></mcp:description>
+			<mcp:parameters-schema><![CDATA[{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+  },
+  "additionalProperties": false
+}
+]]></mcp:parameters-schema>
+			<mcp:responses >
+				<mcp:text-tool-response-content text="#[payload.^raw]" priority="1" >
+					<mcp:audience >
+						<mcp:audience-item value="ASSISTANT" />
+					</mcp:audience>
+				</mcp:text-tool-response-content>
+			</mcp:responses>
+		</mcp:tool-listener>
+		<flow-ref doc:name="get-loggedin-userinfo-from-salesforce-subflow" doc:id="7933bd20-c0d9-4604-b9df-426d897fc750" name="get-loggedin-userinfo-from-salesforce-subflow" />
+	</flow>
 	<sub-flow name="get-users-sub-flow" doc:id="19ded055-b740-4acc-bb9d-12c3b21f0140" >
-		<http:request method="GET" doc:name="Request" doc:id="be40808a-601f-4b5e-8b08-22457fb60298" config-ref="HTTP_Request_configuration" path="/users/1"/>
+		<http:request method="GET" doc:name="Request" doc:id="be40808a-601f-4b5e-8b08-22457fb60298" config-ref="HTTP_Request_configuration" path="/users"/>
 		<ee:transform doc:name="Transform Message" doc:id="01e00ca4-bf39-421e-9a3d-a704c44acfaf" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="get-loggedin-userinfo-from-salesforce-subflow" doc:id="4f21f564-299e-460c-ac39-6365839e1ccf" >
+		<salesforce:get-user-info doc:name="Get user info" doc:id="cebac412-80f7-40cc-ae2c-6f9ae86af4b0" config-ref="Salesforce_Config"/>
+		<ee:transform doc:name="Transform Message" doc:id="6bd6e7aa-d822-45a6-8b29-31820063b024" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:mcp="http://www.mulesoft.org/schema/mule/mcp" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/mcp http://www.mulesoft.org/schema/mule/mcp/current/mule-mcp.xsd">
+	<flow name="get-accounts-streamable" doc:id="ea0d1d67-7626-497d-9443-93af4aee9844" >
+		<mcp:tool-listener doc:name="Streamable Get Accounts" doc:id="22546bbe-a2b8-41e8-969f-3382098b2766" config-ref="MCP_Server_Streamable" name="get_accounts">
+			<mcp:description ><![CDATA[Enables retrieval of account information from a connected CRM system by specifying either a list of account unique identifiers (IDs) or a single name filter. 
+If a list of IDs is provided, the tool returns all matching accounts. If a name is provided, the tool retrieves all accounts whose names contain the given value, using a case-insensitive partial match (equivalent to a SQL `LIKE '%name%'` search). 
+Only one filter—either the list of IDs or the name—can be used per request.]]></mcp:description>
+			<mcp:parameters-schema ><![CDATA[{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "Ids": {
+      "type": "array",
+      "description": "List of unique account identifiers to retrieve.",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "Name": {
+      "type": "string",
+      "description": "The name of the account to retrieve, supports partial matching."
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}
+]]></mcp:parameters-schema>
+			<mcp:responses >
+				<mcp:text-tool-response-content text="#[payload.^raw]" priority="1" >
+					<mcp:audience >
+						<mcp:audience-item value="ASSISTANT" />
+					</mcp:audience>
+				</mcp:text-tool-response-content>
+			</mcp:responses>
+		</mcp:tool-listener>
+		<flow-ref doc:name="get-accounts-sub-flow" doc:id="24a44b5d-78e3-4658-8d4d-ba9ee4cc72cd" name="get-accounts-sub-flow" />
+	</flow>
+	<sub-flow name="get-accounts-sub-flow" doc:id="06c1ad91-a0a8-44ac-8b2f-fe23d7972249" >
+		<choice doc:name="Choice" doc:id="ece68563-934a-4f60-b4ee-96ca9e98f4af">
+			<when expression="#[payload.Ids == null or isEmpty(payload.Ids)]">
+				<salesforce:query doc:name="Query Accounts by Name" doc:id="afa67f1b-68c4-477d-82a5-b66b1697184f" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query><![CDATA[SELECT Id FROM Account WHERE Name LIKE ':accountName']]></salesforce:salesforce-query>
+					<salesforce:parameters><![CDATA[#[output application/java
+---
+{
+	"accountName" : '%' ++ (payload.Name default "") as String ++ '%'
+}]]]></salesforce:parameters>
+		</salesforce:query>
+				<set-variable value="#[%dw 2.0&#10;output json&#10;---&#10;payload..Id]" doc:name="AccountIds" doc:id="1f6e89ed-8cc4-4f09-af74-47b29a35e5f6" variableName="AccountIds" mimeType="application/json" />
+			</when>
+			<otherwise>
+				<set-variable value="#[%dw 2.0&#10;output json&#10;---&#10;payload.Ids default []]" doc:name="AccountIds" doc:id="4f0a7bf6-ed9f-4cca-93c8-0e5d8a7b07f0" variableName="AccountIds" mimeType="application/json" />
+			</otherwise>
+		</choice>
+		<choice doc:name="Choice" doc:id="49917d5e-9bcd-4b5b-8d32-d9e8daa72b9c">
+			<when expression="#[vars.AccountIds != null and !isEmpty(vars.AccountIds)]">
+				<salesforce:retrieve doc:name="Retrieve Accounts" doc:id="048e8cee-e44d-4de2-a264-fd3ced70e824" config-ref="Salesforce_Config" type="Account">
+			<salesforce:retrieve-request><![CDATA[#[%dw 2.0
+output application/java
+---
+{
+  ids: vars.accountIds, // e.g., "001xx000003DGbQAAW"
+  fields: [
+    "Id",
+    "Name",
+    "Type",
+    "Industry",
+    "BillingStreet",
+    "BillingCity",
+    "BillingState",
+    "BillingPostalCode",
+    "BillingCountry",
+    "ShippingStreet",
+    "ShippingCity",
+    "ShippingState",
+    "ShippingPostalCode",
+    "ShippingCountry",
+    "Phone",
+    "Fax",
+    "Website",
+    "AccountNumber",
+    "AnnualRevenue",
+    "NumberOfEmployees",
+    "Description"
+  ]
+}]]]></salesforce:retrieve-request>
+		</salesforce:retrieve>
+			</when>
+			<otherwise>
+				<set-payload value="#[%dw 2.0&#10;output json&#10;---&#10;{}]" doc:name="Set Payload" doc:id="bf46ef4d-3c20-479e-9f03-7650aa4078e6" />
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="toJson" doc:id="0f271ff5-2cd7-4d09-b2f6-15a899325c08">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	</mule>

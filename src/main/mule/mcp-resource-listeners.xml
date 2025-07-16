@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:mcp="http://www.mulesoft.org/schema/mule/mcp"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/mcp http://www.mulesoft.org/schema/mule/mcp/current/mule-mcp.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="mcp-resource-listenersMCPHelloWorldFlow" doc:id="ff5d84ac-b70f-4e71-93f6-0e74c92919d4" >
+		<mcp:resource-listener resourceMimeType="text/plain" doc:name="MCP Server - Resource listener - MCPHelloWorldFlow" doc:id="8f5f9bed-c965-4525-b5ca-874545dd6a36" config-ref="MCP_Server_Streamable" name="Hello World Message" uri="hello://world">
+			<mcp:description ><![CDATA[A simple greeting message]]></mcp:description>
+			<mcp:resource-listener-content >
+				<mcp:text-resource text="#[payload]" />
+			</mcp:resource-listener-content>
+		</mcp:resource-listener>
+		<ee:transform doc:name="MCP Helllo World Message Resource" doc:id="1cd207b7-d071-41ca-9423-d302ad7a4e30" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output text/plain
+---
+'Hello, World! This is my first MCP resource.'
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="mcp-resource-listenersSimplePostMessageFlow" doc:id="ea1e7eb6-fc26-40f1-91b9-c7260b5f9209" >
+		<mcp:resource-listener resourceMimeType="application/json" doc:name="MCP Server - Resource listener - MCPPostMessageFlow" doc:id="c1f1215a-1b61-4a14-a83d-39ee3196c343" config-ref="MCP_Server_Streamable" name="Retrieve  Post Message" uri="retrieve://postmessage">
+			<mcp:description ><![CDATA[A simple post message]]></mcp:description>
+			<mcp:resource-listener-content >
+				<mcp:text-resource text="#[payload]" />
+			</mcp:resource-listener-content>
+		</mcp:resource-listener>
+		<ee:transform doc:name="MCP Retrieve Post Message Resource" doc:id="0137273b-8323-45a2-85a8-cc9c12d85064" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+write(readUrl("https://jsonplaceholder.typicode.com/posts/1", "application/json"))
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="mcp-resource-listenersRetrieveCertificationBlobFlow" doc:id="f44db772-7290-4bf4-82be-8d4662b2f48b" >
+		<mcp:resource-listener resourceMimeType="application/octet-stream" doc:name="MCP Server - Resource listener - MCPRetrieveCertificationBlobFLow" doc:id="44e42d48-7f0e-4796-971e-5d57a3408d92" config-ref="MCP_Server_Streamable" name="Retrieve Certification PNG" uri="file://certification.png">
+			<mcp:description ><![CDATA[Get Certification Blob]]></mcp:description>
+			<mcp:resource-listener-content >
+				<mcp:blob-resource blob="#[payload]" />
+			</mcp:resource-listener-content>
+		</mcp:resource-listener>
+		<ee:transform doc:name="MCP Retrieve Certification Blob Resource" doc:id="276d8e1f-f4f6-4142-9985-90ec41b1171e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/octet-stream
+---
+readUrl("https://res.cloudinary.com/madajee/image/upload/v1751481567/Certifications/Cert6326157_AgentforceSpecialist_20250702.png", "application/octet-stream")
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>

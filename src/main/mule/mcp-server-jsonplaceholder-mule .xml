@@ -94,4 +94,88 @@ payload]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
 	</sub-flow>
+	<flow name="create-message-flow" doc:id="message-flow-id" initialState="started">
+		<mcp:tool-listener doc:name="Create Message" doc:id="create-message-id" config-ref="MCP_Server_Streamable" name="create-message">
+			<mcp:description><![CDATA[Generate a custom message with various options]]></mcp:description>
+			<mcp:parameters-schema><![CDATA[{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "messageType": {
+      "type": "string",
+      "enum": ["greeting", "farewell", "thank-you"]
+    },
+    "recipient": {
+      "type": "string"
+    },
+    "sender": {
+      "type": "string",
+      "enum": ["formal", "casual", "playful"]
+    }
+  },
+  "required": ["messageType", "recipient"],
+  "additionalProperties": false
+}]]></mcp:parameters-schema>
+			<mcp:responses>
+				<mcp:text-tool-response-content text="#[payload.^raw]" priority="1">
+					<mcp:audience>
+						<mcp:audience-item value="ASSISTANT" />
+					</mcp:audience>
+				</mcp:text-tool-response-content>
+			</mcp:responses>
+		</mcp:tool-listener>
+		<choice doc:name="Choice" doc:id="choice-router-id">
+			<when expression="#[payload.messageType == 'greeting']">
+				<ee:transform doc:name="Greeting Transform" doc:id="greeting-transform-id">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: (payload.sender default 'formal') match {
+        case 'formal' -> 'Hello ' ++ payload.recipient
+        case 'casual' -> 'Hi ' ++ payload.recipient
+        case 'playful' -> 'Hey ' ++ payload.recipient ++ '! 👋'
+        else -> 'Hello ' ++ payload.recipient
+    }
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<when expression="#[payload.messageType == 'farewell']">
+				<ee:transform doc:name="Farewell Transform" doc:id="farewell-transform-id">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: (payload.sender default 'formal') match {
+        case 'formal' -> payload.recipient ++ ', Goodbye'
+        case 'casual' -> 'See you later, ' ++ payload.recipient
+        case 'playful' -> 'Catch you later ' ++ payload.recipient ++ '! 👋'
+        else -> 'Goodbye, ' ++ payload.recipient
+    }
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Thank You Transform" doc:id="thank-you-transform-id">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: (payload.sender default 'formal') match {
+        case 'formal' -> 'Thank you for your support, ' ++ payload.recipient
+        case 'casual' -> 'Thanks a lot ' ++ payload.recipient ++ '!'
+        case 'playful' -> 'You rock ' ++ payload.recipient ++ '! Thanks a bunch! 🎉'
+        else -> 'Thank you, ' ++ payload.recipient
+    }
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
 </mule>
